@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
+import React, { useState, ChangeEvent, FormEvent } from "react";
 import axios from "axios";
 
 interface FormData {
@@ -7,41 +7,41 @@ interface FormData {
   email: string;
 }
 
-interface Coordinates {
-  latitude: number;
-  longitude: number;
-}
-
 interface LocationInfo {
   location: {
     city: string;
     country: string;
-    street: string;
-    region: string;
-    timezone: string;
-    postcode: string;
   };
   deviceInfo: {
     os: string;
     browser: string;
-    platform: string;
-    isMobile: boolean;
-    isDesktop: boolean;
-  };
-  networkInfo: {
-    ip: string;
-    isp: string;
-    org: string;
   };
 }
 
 const axiosInstance = axios.create({
-  baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  // baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
 });
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      // Server responded with error status
+      console.error("Response error:", error.response.data);
+    } else if (error.request) {
+      // Request made but no response
+      console.error("Request error:", error.request);
+    } else {
+      // Something else happened
+      console.error("Error:", error.message);
+    }
+    return Promise.reject(error);
+  }
+);
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -49,43 +49,9 @@ const RegisterForm: React.FC = () => {
     password: "",
     email: "",
   });
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [locationInfo, setLocationInfo] = useState<LocationInfo | null>(null);
-  const [locationStatus, setLocationStatus] = useState<string>("");
-
-  useEffect(() => {
-    getUserLocation();
-  }, []);
-
-  console.log(coordinates);
-
-  const getUserLocation = () => {
-    setLocationStatus("Detecting location...");
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCoordinates({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-          setLocationStatus("Location detected");
-        },
-        (error) => {
-          console.error("Location error:", error);
-          setLocationStatus("Location access denied. Using IP-based location.");
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0,
-        }
-      );
-    } else {
-      setLocationStatus("Geolocation is not supported by your browser");
-    }
-  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -93,10 +59,7 @@ const RegisterForm: React.FC = () => {
     setError("");
 
     try {
-      const response = await axiosInstance.post("/register", {
-        ...formData,
-        coordinates: coordinates,
-      });
+      const response = await axiosInstance.post("/register", formData);
       setLocationInfo(response.data.locationInfo);
       console.log("Registration successful:", response.data);
     } catch (error: any) {
@@ -121,12 +84,6 @@ const RegisterForm: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {locationStatus && (
-            <div className="mb-4 text-sm text-gray-600 text-center">
-              {locationStatus}
-            </div>
-          )}
-
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label
@@ -186,49 +143,17 @@ const RegisterForm: React.FC = () => {
             </div>
 
             {locationInfo && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-md space-y-2">
+              <div className="mt-4 p-4 bg-gray-50 rounded-md">
                 <h3 className="text-sm font-medium text-gray-700">
-                  Location Info:
+                  Location detected:
                 </h3>
-                <p className="text-sm text-gray-600">
-                  Address: {locationInfo.location.street},{" "}
-                  {locationInfo.location.city}
+                <p className="text-sm text-gray-500">
+                  {locationInfo.location.city}, {locationInfo.location.country}
                 </p>
-                <p className="text-sm text-gray-600">
-                  Region: {locationInfo.location.region},{" "}
-                  {locationInfo.location.country}
+                <p className="text-sm text-gray-500">
+                  Device: {locationInfo.deviceInfo.os} -{" "}
+                  {locationInfo.deviceInfo.browser}
                 </p>
-                <p className="text-sm text-gray-600">
-                  Postal Code: {locationInfo.location.postcode}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Timezone: {locationInfo.location.timezone}
-                </p>
-                <div className="border-t border-gray-200 pt-2 mt-2">
-                  <h4 className="text-sm font-medium text-gray-700">
-                    Device Info:
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    {locationInfo.deviceInfo.os} -{" "}
-                    {locationInfo.deviceInfo.browser} (
-                    {locationInfo.deviceInfo.platform})
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Device Type:{" "}
-                    {locationInfo.deviceInfo.isMobile ? "Mobile" : "Desktop"}
-                  </p>
-                </div>
-                <div className="border-t border-gray-200 pt-2 mt-2">
-                  <h4 className="text-sm font-medium text-gray-700">
-                    Network Info:
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    ISP: {locationInfo.networkInfo.isp}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Organization: {locationInfo.networkInfo.org}
-                  </p>
-                </div>
               </div>
             )}
 
