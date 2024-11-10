@@ -19,7 +19,7 @@ interface LocationInfo {
 }
 
 const axiosInstance = axios.create({
-  baseURL: "https://backendlocation-p61a.onrender.com/api",
+  baseURL: "https://backendlocation-gmb4.onrender.com/api",
 });
 
 const RegisterForm: React.FC = () => {
