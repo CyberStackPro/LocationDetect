@@ -18,6 +18,10 @@ interface LocationInfo {
   };
 }
 
+const axiosInstance = axios.create({
+  baseURL: "https://backendlocation-p61a.onrender.com/api",
+});
+
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     username: "",
@@ -34,10 +38,7 @@ const RegisterForm: React.FC = () => {
     setError("");
 
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/register",
-        formData
-      );
+      const response = await axiosInstance.post("/register", formData);
       setLocationInfo(response.data.locationInfo);
       console.log("Registration successful:", response.data);
     } catch (error: any) {
