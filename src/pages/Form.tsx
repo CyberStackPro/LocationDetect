@@ -7,11 +7,6 @@ interface FormData {
   email: string;
 }
 
-interface Coordinates {
-  latitude: number;
-  longitude: number;
-}
-
 interface LocationInfo {
   location: {
     current?: {
@@ -79,7 +74,8 @@ const axiosInstance = axios.create({
   //   process.env.NODE_ENV === "production"
   //     ? "https://backendlocation-gmb4.onrender.com/api"
   //     : "http://localhost:5000/api",
-  baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  // baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
@@ -92,7 +88,7 @@ const RegisterForm: React.FC = () => {
     password: "",
     email: "",
   });
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  // const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [locationInfo, setLocationInfo] =
@@ -131,7 +127,7 @@ const RegisterForm: React.FC = () => {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
-          setCoordinates(coords);
+          // setCoordinates(coords);
           setPreciseLocation(true);
           setLocationStatus("Precise location detected");
 
@@ -203,13 +199,17 @@ const RegisterForm: React.FC = () => {
     try {
       const response = await axiosInstance.post("/register", {
         ...formData,
-        coordinates: coordinates,
+        coordinates: locationInfo.location.current?.coordinates,
         preciseLocation,
         locationInfo,
       });
       console.log("Registration successful:", response.data);
     } catch (error: any) {
-      setError(error.response?.data?.error || "Registration failed");
+      if (axios.isAxiosError(error)) {
+        setError(error.response?.data?.error || "Registration failed");
+      } else {
+        setError("An unexpected error occurred");
+      }
       console.error(error);
     } finally {
       setLoading(false);

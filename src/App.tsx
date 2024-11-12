@@ -1,9 +1,10 @@
-import RegisterForm from "./pages/Form";
+import LocationForm from "./pages/LocationForm";
 
 const App = () => {
   return (
     <div>
-      <RegisterForm />
+      {/* <RegisterForm /> */}
+      <LocationForm />
     </div>
   );
 };
