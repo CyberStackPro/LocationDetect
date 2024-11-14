@@ -1,11 +1,28 @@
 import axios from "axios";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
-interface FormData {
-  username: string;
-  password: string;
-  email: string;
+interface Coordinates {
+  type: string;
+  coordinates: [number, number];
 }
+
+interface Location {
+  current: Coordinates;
+  city: string;
+  region: string;
+  country: string;
+  timezone: string;
+}
+
+interface NetworkInfo {
+  ip: string;
+  isp: string;
+  org: string;
+  country: string;
+  region: string;
+  timezone: string;
+}
+
 interface DeviceInfo {
   browser: string;
   os: string;
@@ -15,29 +32,30 @@ interface DeviceInfo {
 }
 
 interface LocationInfo {
-  location: {
-    current: {
-      type: string;
-      coordinates: [number, number];
-    };
-    city: string;
-    region: string;
-    country: string;
-    timezone: string;
-  };
-  networkInfo: {
-    ip: string;
-    isp: string;
-    org: string;
-    country: string;
-    region: string;
-    timezone: string;
-    range?: number[];
-  };
+  location: Location;
+  networkInfo: NetworkInfo;
   deviceInfo: DeviceInfo;
 }
 
-const defaultLocationInfo: LocationInfo = {
+interface FormData {
+  username: string;
+  password: string;
+  email: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  };
+}
+
+interface BrowserCoords {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+}
+
+// Constants
+const DEFAULT_LOCATION_INFO: LocationInfo = {
   location: {
     current: {
       type: "Point",
@@ -64,13 +82,14 @@ const defaultLocationInfo: LocationInfo = {
     isMobile: false,
   },
 };
+
 const axiosInstance = axios.create({
   // baseURL:
   //   process.env.NODE_ENV === "production"
   //     ? "https://backendlocation-gmb4.onrender.com/api"
   //     : "http://localhost:5000/api",
-  baseURL: "https://backendlocation-gmb4.onrender.com/api",
-  //   baseURL: "http://localhost:5000/api",
+  //   baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
@@ -84,26 +103,58 @@ const LocationForm: React.FC = () => {
     email: "",
   });
   const [coordinates, setCoordinates] = useState<{
-    coords: {
-      longitude: number; // Corrected spelling here
-      latitude: number;
-    };
+    coords: BrowserCoords;
   } | null>(null);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [locationInfo, setLocationInfo] =
-    useState<LocationInfo>(defaultLocationInfo);
+  const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
+  const [locationInfo, setLocationInfo] = useState<LocationInfo>(
+    DEFAULT_LOCATION_INFO
+  );
   const [locationStatus, setLocationStatus] = useState<string>("");
 
-  useEffect(() => {
-    getLocationInfo();
-  }, []);
+  const handleError = (error: unknown, fallbackMessage: string) => {
+    if (axios.isAxiosError(error)) {
+      setError(error.response?.data?.error || fallbackMessage);
+    } else {
+      setError(fallbackMessage);
+    }
+    console.error(error);
+  };
 
-  const getLocationInfo = async () => {
+  const updateBrowserLocation = async (
+    coords: BrowserCoords
+  ): Promise<void> => {
+    try {
+      const response = await axiosInstance.post(
+        "/location/update-browser-coordinates",
+        {
+          coordinates: [coords.longitude, coords.latitude],
+          accuracy: coords.accuracy,
+        }
+      );
+
+      if (response.data) {
+        setLocationInfo(response.data);
+        setLocationStatus("Using precise browser location");
+      }
+    } catch (error) {
+      handleError(error, "Failed to update browser location");
+    }
+  };
+  const getLocationInfo = async (): Promise<void> => {
     setLocationStatus("Detecting location...");
 
     try {
-      // Try GPS first
+      // First try to get IP-based location
+      const ipLocationResponse = await axiosInstance.get(
+        "/location/network-info"
+      );
+      setLocationInfo(ipLocationResponse.data);
+      setLocationStatus("Using approximate IP location");
+
+      // Then try to get precise location
       if ("geolocation" in navigator) {
         const position = await new Promise<GeolocationPosition>(
           (resolve, reject) => {
@@ -115,75 +166,75 @@ const LocationForm: React.FC = () => {
           }
         );
 
-        const coords = {
+        const coords: BrowserCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
         };
 
         setCoordinates({ coords });
-
-        // Send precise coordinates to backend
-        const response = await axiosInstance.post(
-          "/location/update-coordinates",
-          {
-            coordinates: [coords.longitude, coords.latitude],
-          }
-        );
-
-        if (response.data) {
-          setLocationInfo(response.data);
-          setLocationStatus("Precise location detected");
-          return;
-        }
+        await updateBrowserLocation(coords);
       }
     } catch (error) {
-      console.warn(
-        "Precise location detection failed, falling back to IP-based location"
-      );
-    }
-
-    try {
-      // Fallback to IP-based location
-      const response = await axiosInstance.get("/location/network-info");
-      if (response.data) {
-        setLocationInfo(response.data);
-        setLocationStatus("Using approximate location");
+      console.warn("Falling back to IP-based location:", error);
+      try {
+        const response = await axiosInstance.get("/location/network-info");
+        if (response.data) {
+          setLocationInfo(response.data);
+          setLocationStatus("Using approximate location");
+        }
+      } catch (fallbackError) {
+        handleError(fallbackError, "Location detection failed");
+        setLocationStatus("Could not detect location");
+        setLocationInfo(DEFAULT_LOCATION_INFO);
+      } finally {
+        setIsLocationLoading(false);
       }
-    } catch (fallbackError) {
-      console.error("Location detection failed:", fallbackError);
-      setLocationStatus("Could not detect location");
-      setLocationInfo(defaultLocationInfo);
     }
   };
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const response = await axiosInstance.post("/register", {
+      const registrationData = {
         ...formData,
         locationInfo,
-      });
+        browserCoordinates: coordinates?.coords
+          ? {
+              coordinates: [
+                coordinates.coords.longitude,
+                coordinates.coords.latitude,
+              ],
+              accuracy: coordinates.coords.accuracy,
+              source: "browser",
+            }
+          : null,
+      };
+      if (registrationData.browserCoordinates === null) {
+        console.log("Browser coordinates not found");
+        throw new Error("Browser coordinates not found");
+      }
 
+      const response = await axiosInstance.post("/register", registrationData);
       console.log("Registration successful:", response.data);
       // Add success handling here (e.g., redirect or show success message)
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setError(error.response?.data?.error || "Registration failed");
-      } else {
-        setError("An unexpected error occurred");
-      }
+      handleError(error, "Registration failed");
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
+  useEffect(() => {
+    getLocationInfo();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -203,6 +254,20 @@ const LocationForm: React.FC = () => {
           </p>
         </div>
       </div>
+      {isLocationLoading ? (
+        <div className="text-center text-sm text-gray-600">
+          <p>Detecting your location...</p>
+        </div>
+      ) : (
+        <div className="">
+          <p className="mt-2 text-center text-sm text-gray-900 font-bold">
+            Latitude 📍 {coordinates?.coords?.latitude}
+          </p>
+          <p className="mt-2 text-center text-sm text-gray-900 font-bold">
+            Longitude 📍 {coordinates?.coords?.longitude}
+          </p>
+        </div>
+      )}
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
