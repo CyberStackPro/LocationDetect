@@ -8,8 +8,8 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/register" replace />} />
-        <Route path="/register" element={<LocationRegistration />} />
+        {/* <Route path="/" element={<Navigate to="/register" replace />} /> */}
+        <Route index element={<LocationRegistration />} />
         <Route path="/location-form" element={<LocationForm />} />
         <Route path="*" element={<Navigate to="/register" replace />} />
       </Routes>

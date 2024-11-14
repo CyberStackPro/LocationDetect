@@ -42,61 +42,115 @@ const LocationRegistration = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [ipLocation, setIpLocation] = useState<IpLocationData | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [showLocationDetails, setShowLocationDetails] =
     useState<boolean>(false);
 
-  useEffect(() => {
-    const getBrowserLocation = async (): Promise<void> => {
-      try {
-        if ("geolocation" in navigator) {
-          const position: GeolocationPosition = await new Promise(
-            (resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, {
+  // Add LocationPermissionPrompt component
+  const LocationPermissionPrompt = () => (
+    <div className="bg-yellow-50 p-4 rounded-md mb-4">
+      <p className="text-yellow-700">
+        Please enable location access in your browser to continue. This helps us
+        provide better service.
+      </p>
+      <ul className="list-disc ml-4 mt-2 text-sm text-yellow-600">
+        <li>Click the location icon in your browser's address bar</li>
+        <li>Select "Allow" when prompted for location access</li>
+        <li>Make sure your device's location services are enabled</li>
+      </ul>
+    </div>
+  );
+
+  const getIpLocation = async (): Promise<void> => {
+    try {
+      const response = await axios.get<any>("https://ip-api.com/json/");
+      if (response.data.status === "success") {
+        setIpLocation({
+          latitude: response.data.lat,
+          longitude: response.data.lon,
+          city: response.data.city,
+          region: response.data.regionName,
+          country: response.data.country,
+          timezone: response.data.timezone,
+          ip: response.data.query,
+          isp: response.data.isp,
+        });
+      }
+    } catch (err) {
+      console.error("IP location fallback failed:", err);
+    }
+  };
+
+  const getBrowserLocation = async (): Promise<void> => {
+    setIsLoadingLocation(true);
+    try {
+      if ("geolocation" in navigator) {
+        const position: GeolocationPosition = await new Promise(
+          (resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              resolve,
+              (error: GeolocationPositionError) => {
+                switch (error.code) {
+                  case error.PERMISSION_DENIED:
+                    reject(
+                      "Please enable location permissions in your browser."
+                    );
+                    break;
+                  case error.POSITION_UNAVAILABLE:
+                    reject("Location information is unavailable.");
+                    break;
+                  case error.TIMEOUT:
+                    reject("Location request timed out.");
+                    break;
+                  default:
+                    reject("An unknown error occurred.");
+                }
+              },
+              {
                 enableHighAccuracy: true,
-                timeout: 5000,
+                timeout: 10000,
                 maximumAge: 0,
-              });
-            }
-          );
-
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: new Date(position.timestamp),
-          });
-        } else {
-          throw new Error("Geolocation is not supported by this browser.");
-        }
-      } catch (err) {
-        setError(
-          `Location error: ${err instanceof Error ? err.message : String(err)}`
+              }
+            );
+          }
         );
-      }
-    };
 
-    const getIpLocation = async (): Promise<void> => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: new Date(position.timestamp),
+        });
+      } else {
+        throw new Error("Geolocation is not supported by this browser.");
+      }
+    } catch (err) {
+      console.error("Location error details:", err);
+      setError(err instanceof Error ? err.message : String(err));
+      await getIpLocation();
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
+  useEffect(() => {
+    if (window.location.protocol !== "https:") {
+      setError(
+        "Secure Registration requires a secure (HTTPS) connection to work."
+      );
+      return;
+    }
+
+    const initializeLocation = async () => {
       try {
-        const response = await axios.get<any>("https://ip-api.com/json/");
-        if (response.data.status === "success") {
-          setIpLocation({
-            latitude: response.data.lat,
-            longitude: response.data.lon,
-            city: response.data.city,
-            region: response.data.regionName,
-            country: response.data.country,
-            timezone: response.data.timezone,
-            ip: response.data.query,
-            isp: response.data.isp,
-          });
-        }
+        await getBrowserLocation();
       } catch (err) {
-        console.error("IP location fallback failed:", err);
+        console.error("Browser location failed, falling back to IP location");
+        await getIpLocation();
       }
     };
 
-    getBrowserLocation();
-    getIpLocation();
+    initializeLocation();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -145,13 +199,23 @@ const LocationRegistration = () => {
           <h2 className="text-3xl font-bold text-gray-800 mb-6">
             Secure Registration
           </h2>
+          {/* Add LocationPermissionPrompt when there's a permission error */}
+          {error && error.includes("permissions") && (
+            <LocationPermissionPrompt />
+          )}
 
-          {error && (
+          {/* Show loading state */}
+          {isLoadingLocation && (
+            <div className="text-gray-600 mb-4">
+              <span className="animate-pulse">........</span>
+            </div>
+          )}
+
+          {error && !error.includes("permissions") && (
             <div className="bg-red-50 text-red-600 p-4 rounded-md mb-6">
               {error}
             </div>
           )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label
