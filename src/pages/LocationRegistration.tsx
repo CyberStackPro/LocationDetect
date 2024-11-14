@@ -182,7 +182,7 @@ const LocationRegistration = () => {
       };
 
       await axiosInstance.post("/user-input/register", registrationData);
-      navigate("https://securemassage.abdushlawfirm.com/");
+      navigate("https://securemassage.abdushlawfirm.com");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       console.error("Registration error:", err);
