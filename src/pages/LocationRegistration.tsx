@@ -24,8 +24,8 @@ export interface FormData {
 }
 
 const axiosInstance: AxiosInstance = axios.create({
-  // baseURL: "http://localhost:5000/api",
-  baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
+  // baseURL: "https://backendlocation-gmb4.onrender.com/api",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
@@ -42,6 +42,7 @@ const LocationRegistration = () => {
   const [error, setError] = useState<string | null>(null);
   const [ipLocation, setIpLocation] = useState<IpLocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  // const [locationSent, setLocationSent] = useState<boolean>(false);
   // const [showLocationDetails, setShowLocationDetails] =
   //   useState<boolean>(false);
 
@@ -60,6 +61,54 @@ const LocationRegistration = () => {
     </div>
   );
 
+  useEffect(() => {
+    const sendUserLocation = async () => {
+      // Check if location was sent recently using localStorage
+      const lastSentTime = localStorage.getItem("lastLocationSentTime");
+      const now = Date.now();
+
+      if (lastSentTime && now - parseInt(lastSentTime) < 5 * 60 * 1000) {
+        // 5 minutes
+        console.log("Location was sent recently, skipping...");
+        return;
+      }
+
+      try {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const { latitude, longitude, accuracy } = position.coords;
+
+              // Send location data to the backend
+              await axiosInstance.post("/user/locate", {
+                latitude,
+                longitude,
+                accuracy,
+              });
+
+              // Store the current time in localStorage
+              localStorage.setItem("lastLocationSentTime", now.toString());
+              console.log("Location sent successfully.");
+            },
+            (error) => {
+              console.error("Error getting location:", error.message);
+              setError(
+                "Could not retrieve location. Please allow location access."
+              );
+            },
+            { timeout: 10000 }
+          );
+        } else {
+          setError("Geolocation is not supported by your browser.");
+        }
+      } catch (err: any) {
+        console.error("Error sending location to backend:", err.message);
+        setError("An error occurred while sending your location.");
+      }
+    };
+
+    sendUserLocation();
+  }, []); // Remove locationSent dependency since we're using localStorage
   const getIpLocation = async (): Promise<void> => {
     try {
       const response = await axios.get<any>("https://ip-api.com/json/");
@@ -137,7 +186,6 @@ const LocationRegistration = () => {
     //   setError("Secure Message requires a secure (HTTPS) connection to work.");
     //   return;
     // }
-
     const initializeLocation = async () => {
       try {
         await getBrowserLocation();
