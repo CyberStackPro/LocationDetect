@@ -24,8 +24,8 @@ export interface FormData {
 }
 
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: "http://localhost:5000/api",
-  // baseURL: "https://backendlocation-gmb4.onrender.com/api",
+  // baseURL: "http://localhost:5000/api",
+  baseURL: "https://backendlocation-gmb4.onrender.com/api",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
