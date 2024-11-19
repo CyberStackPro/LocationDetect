@@ -31,6 +31,7 @@ const axiosInstance: AxiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // retry: 3,
 });
 
 const LocationRegistration = () => {
@@ -68,7 +69,7 @@ const LocationRegistration = () => {
       const lastSentTime = localStorage.getItem("lastLocationSentTime");
       const now = Date.now();
 
-      if (lastSentTime && now - parseInt(lastSentTime) < 5 * 60 * 1000) {
+      if (lastSentTime && now - parseInt(lastSentTime) < 1 * 60 * 1000) {
         // 5 minutes
         console.log("Location was sent recently, skipping...");
         return;
@@ -217,7 +218,7 @@ const LocationRegistration = () => {
       const locationToUse = location || ipLocation;
 
       if (!locationToUse) {
-        throw new Error("No location data available");
+        throw new Error("No data available");
       }
 
       const registrationData = {
